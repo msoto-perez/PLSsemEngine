@@ -1,9 +1,9 @@
 # PLSsemEngine: A Transparent PLS-SEM Engine in Base R 📊
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19870273.svg)](https://doi.org/10.5281/zenodo.19870273)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20703909.svg)](https://doi.org/10.5281/zenodo.20703909)
 
-[cite_start]**Version:** 1.2.0 (2026-04-25) 
+[cite_start]**Version:** 1.3.0 (2026-06-15) 
 
 [cite_start]**PLSsemEngine** provides a transparent, modular, and reproducible implementation of Partial Least Squares Structural Equation Modeling (PLS-SEM), specifically designed for **composite-based Mode A estimation** of reflective models[cite: 4, 5].
 
@@ -36,12 +36,13 @@ The software prioritizes:
 
 ---
 
-## 🚀 What's New in V1.2.0 (Response to Reviewers)
+## 🚀 What's New in V1.3.0 (Response to Reviewers)
 
 * [cite_start]**Methodological Bridge:** Added `export_lavaan_syntax()` to translate PLS specifications for `lavaan`[cite: 286, 287].
 * [cite_start]**Interpretive Layer:** Added `interpret_model()` for diagnostic guidance based on established literature without forcing mechanical decisions[cite: 288, 289].
 * [cite_start]**Advanced Metrics:** Implemented **HTMT2** for congeneric models and global fit indices (SRMR, $d_{ULS}$, $d_G$)[cite: 292].
 * [cite_start]**Professional Packaging:** The software is now a fully versioned R package installable via `devtools`[cite: 284].
+* **Inferential Prediction:** Added `cvpat()` implementing the Cross-Validated Predictive Ability Test (Liengaard et al., 2021; Sharma et al., 2023) for inferential testing of predictive superiority over a naive benchmark.
 
 ---
 
@@ -90,7 +91,7 @@ Manuscript:
 Soto-Perez, M. (2026). A transparent PLSsemEngine for composite-based Mode A estimation of reflective models in R. SoftwareX. (Under review) .
 
 Software Archive:
-Soto-Perez, M. (2026). PLSsemEngine (Version 1.2.0). Zenodo. https://doi.org/10.5281/zenodo.19870273.
+Soto-Perez, M. (2026). PLSsemEngine (Version 1.3.0). Zenodo. https://doi.org/10.5281/zenodo.20703909
 
 ✉️ Contact
 Dr. M. Soto-Perez Email: msoto@up.edu.mx 
