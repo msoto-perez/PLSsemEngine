@@ -1,6 +1,6 @@
 #################################################################
 # ILLUSTRATIVE EXAMPLE: Full PLS-SEM Workflow
-# Package: PLSsemEngine (v1.2.0)
+# Package: PLSsemEngine
 # Purpose: Demonstrates transparency, modularity, and diagnostics
 #################################################################
 
@@ -83,6 +83,11 @@ print(model$structural_model)
 # 4.4 Predictive Relevance (Table 5) [cite: 88, 92]
 # PLSpredict results: RMSE, MAE, and Q2_predict [cite: 7]
 print(model$predictive_relevance)
+
+# 4.5 Inferential Predictive Test: CVPAT (PLSsemEngine >= v1.3.0)
+# Tests whether PLS predictions are significantly better than a naive LM benchmark
+resultado_cvpat <- cvpat(model)
+print(resultado_cvpat)
 
 # =============================================================
 # 5. ADVANCED DIAGNOSTICS & BRIDGES (Reviewer Requests)

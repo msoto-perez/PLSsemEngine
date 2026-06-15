@@ -1,7 +1,6 @@
 ################################################################################
 # Complex Example: Extended Technology Acceptance Model (TAM)
-# Version: 1.2.0
-# Description: Demonstrates scalability with a 5-construct model, 
+# # Description: Demonstrates scalability with a 5-construct model, 
 #              automated circular plotting, and mediation analysis.
 ################################################################################
 
@@ -92,11 +91,15 @@ model_tam <- pls_sem(
 # =====================
 # 4. COMPREHENSIVE RESULTS
 # =====================
-# Display main results with descriptive names (v1.2.0 standard)
+# Display main results with descriptive names
 print(model_tam$measurement_model)      # Loadings, Reliability, and R2
 print(model_tam$discriminant_validity)  # HTMT and HTMT2 matrices
 print(model_tam$structural_model)       # Path Coefficients and f2
 print(model_tam$predictive_relevance)   # PLSpredict (RMSE, Q2_predict)
+
+# Inferential Predictive Test: CVPAT
+cvpat_tam <- cvpat(model_tam)
+print(cvpat_tam)
 
 # Multicollinearity & Global Fit
 print(model_tam$diagnostics$common_method_bias)
