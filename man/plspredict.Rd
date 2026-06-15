@@ -30,11 +30,13 @@ plspredict(
 \item{inner_scheme}{Character. Weighting scheme for the inner approximation.}
 }
 \value{
-A list containing a predictive evaluation table (RMSE and Q2_predict) and conditional warnings.
+A list containing a predictive evaluation table (RMSE and Q2_predict),
+  fold-level squared losses per indicator (fold_losses), and conditional warnings.
 }
 \description{
 Implements the PLSpredict algorithm using k-fold cross-validation. 
 The function estimates the model exclusively on the training set and explicitly 
 projects the outer weights onto the test set. Predictive performance (RMSE) is 
-then compared against a naive linear model (LM) benchmark.
+then compared against a naive linear model (LM) benchmark. Fold-level losses
+are retained to enable inferential testing via cvpat().
 }

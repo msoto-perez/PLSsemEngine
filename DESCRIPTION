@@ -1,8 +1,8 @@
 Package: PLSsemEngine
 Type: Package
 Title: A Transparent PLSsemEngine for Composite-Based Mode A Estimation
-Version: 1.2.0
-Date: 2026-04-25
+Version: 1.3.0
+Date: 2026-06-15
 Authors@R: 
     person("Manuel", "Soto-Perez", 
            email = "msoto@up.edu.mx", 

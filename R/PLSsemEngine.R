@@ -1,4 +1,4 @@
-# Version: 1.2.0
+# Version: 1.3.0
 # Date: 2026-04-25
 # email: msoto@up.edu.mx
 
@@ -269,7 +269,8 @@ bootstrap_paths <- function(data,
 #' @description Implements the PLSpredict algorithm using k-fold cross-validation. 
 #' The function estimates the model exclusively on the training set and explicitly 
 #' projects the outer weights onto the test set. Predictive performance (RMSE) is 
-#' then compared against a naive linear model (LM) benchmark.
+#' then compared against a naive linear model (LM) benchmark. Fold-level losses
+#' are retained to enable inferential testing via cvpat().
 #'
 #' @param data A data frame containing the observed indicators.
 #' @param measurement_model A named list defining the reflective constructs.
@@ -279,7 +280,8 @@ bootstrap_paths <- function(data,
 #' @param sign_correction Logical. Applies deterministic sign alignment to training models.
 #' @param inner_scheme Character. Weighting scheme for the inner approximation.
 #'
-#' @return A list containing a predictive evaluation table (RMSE and Q2_predict) and conditional warnings.
+#' @return A list containing a predictive evaluation table (RMSE and Q2_predict),
+#'   fold-level squared losses per indicator (fold_losses), and conditional warnings.
 #' @export
 plspredict <- function(data,
                        measurement_model,
@@ -381,11 +383,19 @@ plspredict <- function(data,
         
         rmse_lm <- sqrt(mean((y_obs - y_lm)^2, na.rm = TRUE))
         
+        # Store fold-level squared losses for each observation (required for CVPAT)
+        loss_pls_obs <- (y_obs - y_pls)^2
+        loss_lm_obs  <- (y_obs - y_lm)^2
+        
         results[[length(results) + 1]] <- data.frame(
+          Fold      = fold,
           Construct = lhs,
           Indicator = ind,
-          RMSE_PLS = rmse_pls,
-          RMSE_LM = rmse_lm
+          RMSE_PLS  = rmse_pls,
+          RMSE_LM   = rmse_lm,
+          # Mean squared loss per fold per indicator (used by cvpat)
+          MSE_PLS   = mean(loss_pls_obs, na.rm = TRUE),
+          MSE_LM    = mean(loss_lm_obs,  na.rm = TRUE)
         )
       }
     }
@@ -404,8 +414,8 @@ plspredict <- function(data,
         data.frame(
           Construct = res$Construct[i[1]],
           Indicator = res$Indicator[i[1]],
-          RMSE_PLS = mean(res$RMSE_PLS[i]),
-          RMSE_LM  = mean(res$RMSE_LM[i])
+          RMSE_PLS  = mean(res$RMSE_PLS[i]),
+          RMSE_LM   = mean(res$RMSE_LM[i])
         )
       })
   )
@@ -431,10 +441,134 @@ plspredict <- function(data,
   rownames(table5) <- NULL
   
   list(
-    table = table5,
-    warnings = warnings
+    table      = table5,
+    fold_losses = res,
+    warnings   = warnings
   )
 }
+
+#################################################################
+# INFERENTIAL PREDICTIVE TEST: CVPAT
+#################################################################
+
+#' @title Cross-Validated Predictive Ability Test (CVPAT)
+#'
+#' @description Implements the Cross-Validated Predictive Ability Test (CVPAT)
+#' proposed by Liengaard et al. (2021) and extended by Sharma et al. (2023).
+#' Unlike PLSpredict, which provides descriptive predictive metrics (RMSE, Q2_predict),
+#' CVPAT provides an inferential test of whether the PLS model predicts
+#' significantly better than the naive linear model (LM) benchmark.
+#'
+#' The test computes, for each fold and each endogenous indicator, the mean
+#' squared loss difference (MSE_LM - MSE_PLS). A one-sample t-test evaluates
+#' whether the average loss difference across folds is significantly greater
+#' than zero (H0: mean loss difference = 0). A positive and significant result
+#' indicates that the PLS model predicts significantly better than the benchmark.
+#'
+#' @param plspredict_result The list returned by plspredict(), which must include
+#'   the fold_losses element (available when using PLSsemEngine >= v1.3.0).
+#'
+#' @return A data frame with one row per endogenous indicator, reporting:
+#'   mean loss difference, standard deviation, t-statistic, degrees of freedom,
+#'   p-value, and a significance flag. An attribute "interpretation" is attached
+#'   with a brief methodological note.
+#'
+#' @references
+#'   Liengaard, B. D., Sharma, P. N., Hult, G. T. M., Jensen, M. B., Sarstedt, M.,
+#'   Hair, J. F., & Ringle, C. M. (2021). Prediction: coveted, yet forsaken?
+#'   Introducing a cross-validated predictive ability test in partial least squares
+#'   path modeling. Decision Sciences, 52(2), 362-392.
+#'
+#'   Sharma, P. N., Liengaard, B. D., Hair, J. F., Sarstedt, M., & Ringle, C. M.
+#'   (2023). Predictive model assessment and selection in composite-based modeling
+#'   using PLS-SEM: extensions and guidelines for using CVPAT. European Journal
+#'   of Marketing, 57(6), 1662-1677.
+#'
+#' @export
+cvpat <- function(plspredict_result) {
+  
+  # Validate that fold_losses is present (requires updated plspredict)
+  if (is.null(plspredict_result$fold_losses)) {
+    stop(
+      "fold_losses not found in plspredict result. ",
+      "Please re-run plspredict() using PLSsemEngine >= v1.3.0.",
+      call. = FALSE
+    )
+  }
+  
+  res <- plspredict_result$fold_losses
+  
+  # Identify unique construct-indicator combinations
+  indicators <- unique(paste(res$Construct, res$Indicator, sep = "|"))
+  
+  cvpat_results <- lapply(indicators, function(key) {
+    
+    parts <- strsplit(key, "\\|")[[1]]
+    construct <- parts[1]
+    indicator <- parts[2]
+    
+    # Extract fold-level losses for this indicator
+    idx <- res$Construct == construct & res$Indicator == indicator
+    fold_data <- res[idx, ]
+    
+    # Loss difference per fold: positive values mean PLS beats LM
+    # Following Liengaard et al. (2021): delta = MSE_LM - MSE_PLS
+    delta <- fold_data$MSE_LM - fold_data$MSE_PLS
+    
+    k <- length(delta)
+    
+    if (k < 2) {
+      return(data.frame(
+        Construct   = construct,
+        Indicator   = indicator,
+        Mean_Loss_Diff = NA,
+        SD_Loss_Diff   = NA,
+        t_statistic    = NA,
+        df             = NA,
+        p_value        = NA,
+        Significant    = NA,
+        stringsAsFactors = FALSE
+      ))
+    }
+    
+    # One-sample t-test: H0: mean(delta) = 0
+    # A significant positive result means PLS predicts better than LM
+    mean_delta <- mean(delta, na.rm = TRUE)
+    sd_delta   <- sd(delta,   na.rm = TRUE)
+    se_delta   <- sd_delta / sqrt(k)
+    t_stat     <- mean_delta / se_delta
+    df_t       <- k - 1
+    
+    # Two-sided p-value (consistent with Liengaard et al., 2021)
+    p_val <- 2 * pt(-abs(t_stat), df = df_t)
+    
+    data.frame(
+      Construct      = construct,
+      Indicator      = indicator,
+      Mean_Loss_Diff = round(mean_delta, 4),
+      SD_Loss_Diff   = round(sd_delta,   4),
+      t_statistic    = round(t_stat,     3),
+      df             = df_t,
+      p_value        = round(p_val,      4),
+      Significant    = ifelse(p_val < 0.05, "Yes", "No"),
+      stringsAsFactors = FALSE
+    )
+  })
+  
+  output <- do.call(rbind, cvpat_results)
+  rownames(output) <- NULL
+  
+  attr(output, "interpretation") <- paste(
+    "CVPAT (Liengaard et al., 2021): Mean loss difference = MSE_LM - MSE_PLS per fold.",
+    "A positive and significant result (p < .05) indicates the PLS model predicts",
+    "significantly better than the naive linear model benchmark.",
+    "H0: mean loss difference = 0. Two-sided t-test with k-1 degrees of freedom."
+  )
+  
+  class(output) <- c("cvpat_result", "data.frame")
+  output
+}
+
 #################################################################
 # DIAGNOSTICS: Common Method Bias (Full Collinearity VIF)
 #################################################################
@@ -629,7 +763,7 @@ compute_model_fit <- function(engine, data, measurement_model, digits = 3) {
 }
 
 #################################################################
-# WRAPPER: High-Level Analysis Workflow (Version 1.2.0)
+# WRAPPER: High-Level Analysis Workflow (Version 1.3.0)
 #################################################################
 
 #' @title Estimate a PLS-SEM Model (Mode A)
@@ -649,7 +783,7 @@ compute_model_fit <- function(engine, data, measurement_model, digits = 3) {
 #' @param inner_scheme Character. Weighting scheme for the inner model ("factorial" or "centroid"). Default is "factorial".
 #'
 #' @return A list of class 'pls_model' containing structured tables for measurement, structural, and predictive assessments.
-#' @importFrom stats coef cor lm predict quantile sd
+#' @importFrom stats coef cor lm predict quantile sd pt
 #' @importFrom graphics arrows rect strheight strwidth text
 #' @importFrom grDevices dev.off png
 #' @importFrom utils write.csv
@@ -820,7 +954,8 @@ pls_sem <- function(data,
     measurement_model = measurement_results,     
     discriminant_validity = htmt_results,        
     structural_model = structural_results,       
-    predictive_relevance = pred$table,           
+    predictive_relevance = pred$table,
+    fold_losses = pred$fold_losses,           
     diagnostics = list(
       common_method_bias = cmb_table,            
       global_fit = fit_table                     
@@ -840,7 +975,7 @@ pls_sem <- function(data,
       n_obs = nrow(data),
       constructs = names(measurement_model),
       inner_scheme = inner_scheme,
-      version = "1.2.0"
+      version = "1.3.0"
     )
   )
   
