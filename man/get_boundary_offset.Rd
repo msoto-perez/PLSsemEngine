@@ -21,3 +21,7 @@ A geometric helper function that calculates the precise offset required
 for arrow positioning, ensuring that structural paths touch the boundaries of the 
 construct rectangles rather than overlapping them.
 }
+\examples{
+get_boundary_offset(angle = pi / 4, bw = 1.1, bh = 0.3)
+
+}

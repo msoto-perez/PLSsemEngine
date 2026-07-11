@@ -22,3 +22,13 @@ following Henseler et al. (2015), and the revised HTMT2 following Roemer
 et al. (2021). HTMT2 uses the geometric mean to relax the tau-equivalence 
 assumption, making it suitable for congeneric models.
 }
+\examples{
+set.seed(1)
+dat <- data.frame(
+  SQ1 = rnorm(100), SQ2 = rnorm(100), SQ3 = rnorm(100),
+  CS1 = rnorm(100), CS2 = rnorm(100), CS3 = rnorm(100)
+)
+mm <- list(Quality = c("SQ1", "SQ2", "SQ3"), Satisfaction = c("CS1", "CS2", "CS3"))
+compute_htmt_metrics(dat, mm)
+
+}

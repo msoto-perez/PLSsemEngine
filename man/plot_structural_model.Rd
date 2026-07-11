@@ -52,3 +52,11 @@ Generates a pure base R plot of the structural model layout.
 It relies exclusively on native graphical parameters to avoid third-party 
 dependencies, ensuring long-term reproducibility and stability.
 }
+\examples{
+sm <- list(
+  Satisfaction ~ Quality,
+  Loyalty ~ Satisfaction + Quality
+)
+plot_structural_model(sm)
+
+}

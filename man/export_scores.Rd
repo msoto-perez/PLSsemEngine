@@ -19,3 +19,25 @@ Extracts and exports the estimated latent variable scores to a
 CSV file. A sequential 'Case' identifier is appended to improve data 
 traceability and facilitate subsequent external analyses.
 }
+\examples{
+set.seed(123)
+dat <- data.frame(
+  SQ1 = rnorm(100), SQ2 = rnorm(100), SQ3 = rnorm(100),
+  CS1 = rnorm(100), CS2 = rnorm(100), CS3 = rnorm(100),
+  CL1 = rnorm(100), CL2 = rnorm(100), CL3 = rnorm(100)
+)
+mm <- list(
+  Quality = c("SQ1", "SQ2", "SQ3"),
+  Satisfaction = c("CS1", "CS2", "CS3"),
+  Loyalty = c("CL1", "CL2", "CL3")
+)
+sm <- list(
+  Satisfaction ~ Quality,
+  Loyalty ~ Satisfaction + Quality
+)
+model <- pls_sem(dat, mm, sm, nboot = 20)
+out_file <- file.path(tempdir(), "latent_scores.csv")
+export_scores(model, file = out_file)
+unlink(out_file)
+
+}

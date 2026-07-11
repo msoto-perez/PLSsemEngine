@@ -20,3 +20,15 @@ VIF approach proposed by Kock (2015). Values above 3.3 may indicate
 pathological collinearity. In line with the engine's design philosophy, 
 no automatic classification or model modification is applied.
 }
+\examples{
+set.seed(1)
+dat <- data.frame(
+  SQ1 = rnorm(100), SQ2 = rnorm(100), SQ3 = rnorm(100),
+  CS1 = rnorm(100), CS2 = rnorm(100), CS3 = rnorm(100)
+)
+mm <- list(Quality = c("SQ1", "SQ2", "SQ3"), Satisfaction = c("CS1", "CS2", "CS3"))
+sm <- list(Satisfaction ~ Quality)
+engine <- pls_engine(dat, mm, sm)
+compute_cmb_vif(engine$scores)
+
+}

@@ -49,6 +49,18 @@
 #' @param inner_scheme Character. Weighting scheme for the inner approximation ("factorial" or "centroid"). Default is "factorial".
 #'
 #' @return A list containing latent scores, outer weights, indicator loadings, structural paths, R-squared values, and metadata.
+#'
+#' @examples
+#' set.seed(1)
+#' dat <- data.frame(
+#'   SQ1 = rnorm(100), SQ2 = rnorm(100), SQ3 = rnorm(100),
+#'   CS1 = rnorm(100), CS2 = rnorm(100), CS3 = rnorm(100)
+#' )
+#' mm <- list(Quality = c("SQ1", "SQ2", "SQ3"), Satisfaction = c("CS1", "CS2", "CS3"))
+#' sm <- list(Satisfaction ~ Quality)
+#' engine <- pls_engine(dat, mm, sm)
+#' engine$paths
+#'
 #' @export
 pls_engine <- function(data,
                        measurement_model,
@@ -212,6 +224,18 @@ pls_engine <- function(data,
 #' @param inner_scheme Character. Weighting scheme for the inner approximation.
 #'
 #' @return A data frame containing the estimated path coefficients for all bootstrap iterations.
+#'
+#' @examples
+#' set.seed(1)
+#' dat <- data.frame(
+#'   SQ1 = rnorm(100), SQ2 = rnorm(100), SQ3 = rnorm(100),
+#'   CS1 = rnorm(100), CS2 = rnorm(100), CS3 = rnorm(100)
+#' )
+#' mm <- list(Quality = c("SQ1", "SQ2", "SQ3"), Satisfaction = c("CS1", "CS2", "CS3"))
+#' sm <- list(Satisfaction ~ Quality)
+#' boot <- bootstrap_paths(dat, mm, sm, nboot = 20)
+#' head(boot)
+#'
 #' @export
 bootstrap_paths <- function(data,
                             measurement_model,
@@ -282,6 +306,18 @@ bootstrap_paths <- function(data,
 #'
 #' @return A list containing a predictive evaluation table (RMSE and Q2_predict),
 #'   fold-level squared losses per indicator (fold_losses), and conditional warnings.
+#'
+#' @examples
+#' set.seed(1)
+#' dat <- data.frame(
+#'   SQ1 = rnorm(100), SQ2 = rnorm(100), SQ3 = rnorm(100),
+#'   CS1 = rnorm(100), CS2 = rnorm(100), CS3 = rnorm(100)
+#' )
+#' mm <- list(Quality = c("SQ1", "SQ2", "SQ3"), Satisfaction = c("CS1", "CS2", "CS3"))
+#' sm <- list(Satisfaction ~ Quality)
+#' pred <- plspredict(dat, mm, sm, k = 5)
+#' pred$table
+#'
 #' @export
 plspredict <- function(data,
                        measurement_model,
@@ -484,6 +520,17 @@ plspredict <- function(data,
 #'   using PLS-SEM: extensions and guidelines for using CVPAT. European Journal
 #'   of Marketing, 57(6), 1662-1677.
 #'
+#' @examples
+#' set.seed(1)
+#' dat <- data.frame(
+#'   SQ1 = rnorm(100), SQ2 = rnorm(100), SQ3 = rnorm(100),
+#'   CS1 = rnorm(100), CS2 = rnorm(100), CS3 = rnorm(100)
+#' )
+#' mm <- list(Quality = c("SQ1", "SQ2", "SQ3"), Satisfaction = c("CS1", "CS2", "CS3"))
+#' sm <- list(Satisfaction ~ Quality)
+#' pred <- plspredict(dat, mm, sm, k = 5)
+#' cvpat(pred)
+#'
 #' @export
 cvpat <- function(plspredict_result) {
   
@@ -584,6 +631,18 @@ cvpat <- function(plspredict_result) {
 #' @param digits Integer. Number of decimal places for the output. Default is 2.
 #'
 #' @return A data frame containing the VIF values for each construct.
+#'
+#' @examples
+#' set.seed(1)
+#' dat <- data.frame(
+#'   SQ1 = rnorm(100), SQ2 = rnorm(100), SQ3 = rnorm(100),
+#'   CS1 = rnorm(100), CS2 = rnorm(100), CS3 = rnorm(100)
+#' )
+#' mm <- list(Quality = c("SQ1", "SQ2", "SQ3"), Satisfaction = c("CS1", "CS2", "CS3"))
+#' sm <- list(Satisfaction ~ Quality)
+#' engine <- pls_engine(dat, mm, sm)
+#' compute_cmb_vif(engine$scores)
+#'
 #' @export
 compute_cmb_vif <- function(scores, digits = 2) {
   
@@ -628,6 +687,16 @@ compute_cmb_vif <- function(scores, digits = 2) {
 #' @param digits Integer. Number of decimal places for the output matrices. Default is 2.
 #'
 #' @return A list containing the HTMT and HTMT2 symmetric matrices.
+#'
+#' @examples
+#' set.seed(1)
+#' dat <- data.frame(
+#'   SQ1 = rnorm(100), SQ2 = rnorm(100), SQ3 = rnorm(100),
+#'   CS1 = rnorm(100), CS2 = rnorm(100), CS3 = rnorm(100)
+#' )
+#' mm <- list(Quality = c("SQ1", "SQ2", "SQ3"), Satisfaction = c("CS1", "CS2", "CS3"))
+#' compute_htmt_metrics(dat, mm)
+#'
 #' @export
 compute_htmt_metrics <- function(data, measurement_model, digits = 2) {
   
@@ -708,6 +777,18 @@ compute_htmt_metrics <- function(data, measurement_model, digits = 2) {
 #' @param digits Integer. Number of decimal places for the output. Default is 3.
 #'
 #' @return A data frame containing the computed fit metrics.
+#'
+#' @examples
+#' set.seed(1)
+#' dat <- data.frame(
+#'   SQ1 = rnorm(100), SQ2 = rnorm(100), SQ3 = rnorm(100),
+#'   CS1 = rnorm(100), CS2 = rnorm(100), CS3 = rnorm(100)
+#' )
+#' mm <- list(Quality = c("SQ1", "SQ2", "SQ3"), Satisfaction = c("CS1", "CS2", "CS3"))
+#' sm <- list(Satisfaction ~ Quality)
+#' engine <- pls_engine(dat, mm, sm)
+#' compute_model_fit(engine, dat, mm)
+#'
 #' @export
 compute_model_fit <- function(engine, data, measurement_model, digits = 3) {
   
@@ -783,6 +864,26 @@ compute_model_fit <- function(engine, data, measurement_model, digits = 3) {
 #' @param inner_scheme Character. Weighting scheme for the inner model ("factorial" or "centroid"). Default is "factorial".
 #'
 #' @return A list of class 'pls_model' containing structured tables for measurement, structural, and predictive assessments.
+#'
+#' @examples
+#' set.seed(123)
+#' dat <- data.frame(
+#'   SQ1 = rnorm(100), SQ2 = rnorm(100), SQ3 = rnorm(100),
+#'   CS1 = rnorm(100), CS2 = rnorm(100), CS3 = rnorm(100),
+#'   CL1 = rnorm(100), CL2 = rnorm(100), CL3 = rnorm(100)
+#' )
+#' mm <- list(
+#'   Quality = c("SQ1", "SQ2", "SQ3"),
+#'   Satisfaction = c("CS1", "CS2", "CS3"),
+#'   Loyalty = c("CL1", "CL2", "CL3")
+#' )
+#' sm <- list(
+#'   Satisfaction ~ Quality,
+#'   Loyalty ~ Satisfaction + Quality
+#' )
+#' model <- pls_sem(dat, mm, sm, nboot = 20)
+#' model$structural_model
+#'
 #' @importFrom stats coef cor lm predict quantile sd pt
 #' @importFrom graphics arrows rect strheight strwidth text
 #' @importFrom grDevices dev.off png
@@ -997,6 +1098,28 @@ pls_sem <- function(data,
 #' @param file Character. The file path and name for the exported CSV. Default is "latent_scores.csv".
 #'
 #' @return Invisibly returns the data frame of scores while writing the CSV file to disk.
+#'
+#' @examples
+#' set.seed(123)
+#' dat <- data.frame(
+#'   SQ1 = rnorm(100), SQ2 = rnorm(100), SQ3 = rnorm(100),
+#'   CS1 = rnorm(100), CS2 = rnorm(100), CS3 = rnorm(100),
+#'   CL1 = rnorm(100), CL2 = rnorm(100), CL3 = rnorm(100)
+#' )
+#' mm <- list(
+#'   Quality = c("SQ1", "SQ2", "SQ3"),
+#'   Satisfaction = c("CS1", "CS2", "CS3"),
+#'   Loyalty = c("CL1", "CL2", "CL3")
+#' )
+#' sm <- list(
+#'   Satisfaction ~ Quality,
+#'   Loyalty ~ Satisfaction + Quality
+#' )
+#' model <- pls_sem(dat, mm, sm, nboot = 20)
+#' out_file <- file.path(tempdir(), "latent_scores.csv")
+#' export_scores(model, file = out_file)
+#' unlink(out_file)
+#'
 #' @export
 export_scores <- function(model, file = "latent_scores.csv") {
   
@@ -1029,6 +1152,26 @@ export_scores <- function(model, file = "latent_scores.csv") {
 #' @param digits Integer. Number of decimal places for the output. Default is 2.
 #'
 #' @return A data frame detailing problematic construct pairs and their item-level cross-correlations, or NULL if no issues are detected.
+#'
+#' @examples
+#' set.seed(123)
+#' dat <- data.frame(
+#'   SQ1 = rnorm(100), SQ2 = rnorm(100), SQ3 = rnorm(100),
+#'   CS1 = rnorm(100), CS2 = rnorm(100), CS3 = rnorm(100),
+#'   CL1 = rnorm(100), CL2 = rnorm(100), CL3 = rnorm(100)
+#' )
+#' mm <- list(
+#'   Quality = c("SQ1", "SQ2", "SQ3"),
+#'   Satisfaction = c("CS1", "CS2", "CS3"),
+#'   Loyalty = c("CL1", "CL2", "CL3")
+#' )
+#' sm <- list(
+#'   Satisfaction ~ Quality,
+#'   Loyalty ~ Satisfaction + Quality
+#' )
+#' model <- pls_sem(dat, mm, sm, nboot = 20)
+#' htmt_item_diagnostics(model)
+#'
 #' @export
 htmt_item_diagnostics <- function(model, threshold = 0.85, digits = 2) {
   
@@ -1098,6 +1241,26 @@ htmt_item_diagnostics <- function(model, threshold = 0.85, digits = 2) {
 #' @param digits Integer. Number of decimal places for the output. Default is 3.
 #'
 #' @return A data frame containing the calculated indirect effects, or NULL if no structural mediators exist.
+#'
+#' @examples
+#' set.seed(123)
+#' dat <- data.frame(
+#'   SQ1 = rnorm(100), SQ2 = rnorm(100), SQ3 = rnorm(100),
+#'   CS1 = rnorm(100), CS2 = rnorm(100), CS3 = rnorm(100),
+#'   CL1 = rnorm(100), CL2 = rnorm(100), CL3 = rnorm(100)
+#' )
+#' mm <- list(
+#'   Quality = c("SQ1", "SQ2", "SQ3"),
+#'   Satisfaction = c("CS1", "CS2", "CS3"),
+#'   Loyalty = c("CL1", "CL2", "CL3")
+#' )
+#' sm <- list(
+#'   Satisfaction ~ Quality,
+#'   Loyalty ~ Satisfaction + Quality
+#' )
+#' model <- pls_sem(dat, mm, sm, nboot = 20)
+#' get_indirect_effects(model)
+#'
 #' @export
 get_indirect_effects <- function(model, digits = 3) {
   
@@ -1153,6 +1316,10 @@ get_indirect_effects <- function(model, digits = 3) {
 #' support researcher-led interpretation rather than enforce mechanical rule application.
 #'
 #' @return A data frame mapping analytical components to standard thresholds and academic references.
+#'
+#' @examples
+#' get_references()
+#'
 #' @export
 get_references <- function() {
   
@@ -1206,6 +1373,10 @@ get_references <- function() {
 #' @param bh Numeric. The half-height of the rectangle.
 #'
 #' @return Numeric. The geometric offset distance.
+#'
+#' @examples
+#' get_boundary_offset(angle = pi / 4, bw = 1.1, bh = 0.3)
+#'
 #' @export
 get_boundary_offset <- function(angle, bw, bh) {
   # Apply trigonometric logic to determine if the intersection occurs 
@@ -1241,8 +1412,16 @@ get_boundary_offset <- function(angle, bw, bh) {
 #' @param res Integer. Resolution of the exported image in PPI.
 #'
 #' @return Invisibly generates a plot on the active graphic device.
+#'
+#' @examples
+#' sm <- list(
+#'   Satisfaction ~ Quality,
+#'   Loyalty ~ Satisfaction + Quality
+#' )
+#' plot_structural_model(sm)
+#'
 #' @export
-plot_structural_model <- function(structural_model, layout = NULL, 
+plot_structural_model <- function(structural_model, layout = NULL,
                                   box_width = 1.1, box_height = 0.3, 
                                   cex_node = 0.9, arr_lwd = 1.2, 
                                   box_col = "white",
@@ -1334,8 +1513,28 @@ plot_structural_model <- function(structural_model, layout = NULL,
 #' @param res Integer. Image resolution.
 #'
 #' @return Invisibly generates a plot on the active graphic device.
+#'
+#' @examples
+#' set.seed(123)
+#' dat <- data.frame(
+#'   SQ1 = rnorm(100), SQ2 = rnorm(100), SQ3 = rnorm(100),
+#'   CS1 = rnorm(100), CS2 = rnorm(100), CS3 = rnorm(100),
+#'   CL1 = rnorm(100), CL2 = rnorm(100), CL3 = rnorm(100)
+#' )
+#' mm <- list(
+#'   Quality = c("SQ1", "SQ2", "SQ3"),
+#'   Satisfaction = c("CS1", "CS2", "CS3"),
+#'   Loyalty = c("CL1", "CL2", "CL3")
+#' )
+#' sm <- list(
+#'   Satisfaction ~ Quality,
+#'   Loyalty ~ Satisfaction + Quality
+#' )
+#' model <- pls_sem(dat, mm, sm, nboot = 20)
+#' plot_model_results(model)
+#'
 #' @export
-plot_model_results <- function(model, layout = NULL, 
+plot_model_results <- function(model, layout = NULL,
                                show_r2 = TRUE,
                                box_width = 1.1, box_height = 0.3, 
                                cex_node = 0.9, cex_beta = 0.8, cex_r2 = 0.75,
@@ -1439,6 +1638,26 @@ plot_model_results <- function(model, layout = NULL,
 #' @param model An object of class 'pls_model'.
 #'
 #' @return Invisibly prints a structured console report flagging potential issues.
+#'
+#' @examples
+#' set.seed(123)
+#' dat <- data.frame(
+#'   SQ1 = rnorm(100), SQ2 = rnorm(100), SQ3 = rnorm(100),
+#'   CS1 = rnorm(100), CS2 = rnorm(100), CS3 = rnorm(100),
+#'   CL1 = rnorm(100), CL2 = rnorm(100), CL3 = rnorm(100)
+#' )
+#' mm <- list(
+#'   Quality = c("SQ1", "SQ2", "SQ3"),
+#'   Satisfaction = c("CS1", "CS2", "CS3"),
+#'   Loyalty = c("CL1", "CL2", "CL3")
+#' )
+#' sm <- list(
+#'   Satisfaction ~ Quality,
+#'   Loyalty ~ Satisfaction + Quality
+#' )
+#' model <- pls_sem(dat, mm, sm, nboot = 20)
+#' interpret_model(model)
+#'
 #' @export
 interpret_model <- function(model) {
   
@@ -1524,6 +1743,19 @@ interpret_model <- function(model) {
 #' @param structural_model An optional list of formulas defining the paths.
 #'
 #' @return Invisibly returns the generated lavaan syntax string while printing it to the console.
+#'
+#' @examples
+#' mm <- list(
+#'   Quality = c("SQ1", "SQ2", "SQ3"),
+#'   Satisfaction = c("CS1", "CS2", "CS3"),
+#'   Loyalty = c("CL1", "CL2", "CL3")
+#' )
+#' sm <- list(
+#'   Satisfaction ~ Quality,
+#'   Loyalty ~ Satisfaction + Quality
+#' )
+#' export_lavaan_syntax(mm, sm)
+#'
 #' @export
 export_lavaan_syntax <- function(measurement_model, structural_model = NULL) {
   

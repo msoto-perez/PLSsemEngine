@@ -14,3 +14,7 @@ Provides a quick-reference table outlining standard evaluation
 heuristics and literature citations for PLS-SEM. This tool is intended to 
 support researcher-led interpretation rather than enforce mechanical rule application.
 }
+\examples{
+get_references()
+
+}

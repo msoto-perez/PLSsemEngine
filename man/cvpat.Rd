@@ -29,6 +29,18 @@ whether the average loss difference across folds is significantly greater
 than zero (H0: mean loss difference = 0). A positive and significant result
 indicates that the PLS model predicts significantly better than the benchmark.
 }
+\examples{
+set.seed(1)
+dat <- data.frame(
+  SQ1 = rnorm(100), SQ2 = rnorm(100), SQ3 = rnorm(100),
+  CS1 = rnorm(100), CS2 = rnorm(100), CS3 = rnorm(100)
+)
+mm <- list(Quality = c("SQ1", "SQ2", "SQ3"), Satisfaction = c("CS1", "CS2", "CS3"))
+sm <- list(Satisfaction ~ Quality)
+pred <- plspredict(dat, mm, sm, k = 5)
+cvpat(pred)
+
+}
 \references{
 Liengaard, B. D., Sharma, P. N., Hult, G. T. M., Jensen, M. B., Sarstedt, M.,
   Hair, J. F., & Ringle, C. M. (2021). Prediction: coveted, yet forsaken?

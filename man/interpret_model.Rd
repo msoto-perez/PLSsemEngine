@@ -18,3 +18,23 @@ literature (e.g., Hair et al., 2017; Henseler et al., 2015). Crucially, this
 function contextualises the raw metrics without imposing mechanical or automated 
 decision-making, keeping the final analytical judgement with the researcher.
 }
+\examples{
+set.seed(123)
+dat <- data.frame(
+  SQ1 = rnorm(100), SQ2 = rnorm(100), SQ3 = rnorm(100),
+  CS1 = rnorm(100), CS2 = rnorm(100), CS3 = rnorm(100),
+  CL1 = rnorm(100), CL2 = rnorm(100), CL3 = rnorm(100)
+)
+mm <- list(
+  Quality = c("SQ1", "SQ2", "SQ3"),
+  Satisfaction = c("CS1", "CS2", "CS3"),
+  Loyalty = c("CL1", "CL2", "CL3")
+)
+sm <- list(
+  Satisfaction ~ Quality,
+  Loyalty ~ Satisfaction + Quality
+)
+model <- pls_sem(dat, mm, sm, nboot = 20)
+interpret_model(model)
+
+}

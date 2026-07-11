@@ -38,3 +38,15 @@ significance of structural path coefficients. Crucially, to capture the total
 sampling uncertainty, this function performs a full-model re-estimation for every 
 bootstrap replica, recalculating both outer weights and inner paths.
 }
+\examples{
+set.seed(1)
+dat <- data.frame(
+  SQ1 = rnorm(100), SQ2 = rnorm(100), SQ3 = rnorm(100),
+  CS1 = rnorm(100), CS2 = rnorm(100), CS3 = rnorm(100)
+)
+mm <- list(Quality = c("SQ1", "SQ2", "SQ3"), Satisfaction = c("CS1", "CS2", "CS3"))
+sm <- list(Satisfaction ~ Quality)
+boot <- bootstrap_paths(dat, mm, sm, nboot = 20)
+head(boot)
+
+}

@@ -20,3 +20,16 @@ translating the PLSsemEngine model specification into lavaan-compatible syntax.
 This allows researchers to seamlessly evaluate their composite models against 
 common factor models (CFA).
 }
+\examples{
+mm <- list(
+  Quality = c("SQ1", "SQ2", "SQ3"),
+  Satisfaction = c("CS1", "CS2", "CS3"),
+  Loyalty = c("CL1", "CL2", "CL3")
+)
+sm <- list(
+  Satisfaction ~ Quality,
+  Loyalty ~ Satisfaction + Quality
+)
+export_lavaan_syntax(mm, sm)
+
+}
