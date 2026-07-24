@@ -9,8 +9,7 @@
 # 1. Environment Setup (Load the engine)
 # =================================================================
 
-# Install and load the latest version of the engine directly from the repository
-devtools::install_github("msoto-perez/PLSsemEngine", force = TRUE)
+# Assumes PLSsemEngine is already installed
 library(PLSsemEngine)
 
 # =================================================================

@@ -5,12 +5,9 @@
 ############################################################
 
 # =================================================================
-# 1. Environment Setup
+# 1. Environment Setup (assumes plspm and PLSsemEngine are already installed)
 # =================================================================
-if (!requireNamespace("plspm", quietly = TRUE)) install.packages("plspm")
 library(plspm)
-
-devtools::install_github("msoto-perez/PLSsemEngine", force = TRUE)
 library(PLSsemEngine)
 
 # =====================

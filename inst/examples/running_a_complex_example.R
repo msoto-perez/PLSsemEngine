@@ -4,8 +4,7 @@
 #              automated circular plotting, and mediation analysis.
 ################################################################################
 
-# Load the package
-devtools::install_github("msoto-perez/PLSsemEngine", force = TRUE)
+# Load the package (assumes PLSsemEngine is already installed)
 library(PLSsemEngine)
 
 # =====================
@@ -121,9 +120,9 @@ plot_model_results(model_tam,
                    box_height = 0.3)
 
 # Save high-resolution circular plot for external reporting
-plot_model_results(model_tam, 
-                   layout     = NULL, 
-                   save_plot  = TRUE, 
-                   file_name  = "TAM_Circular_Results.png")
+plot_model_results(model_tam,
+                   layout     = NULL,
+                   save_plot  = TRUE,
+                   file_name  = file.path(tempdir(), "TAM_Circular_Results.png"))
 
 cat("\nAnalysis complete. Results and plots are ready.\n")

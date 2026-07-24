@@ -4,8 +4,7 @@
 # Note: pls_sem() includes additional diagnostics beyond bootstrap,
 # which may increase execution time relative to plspm.
 
-# Install and load the latest version of the engine directly from the repository
-devtools::install_github("msoto-perez/PLSsemEngine", force = TRUE)
+# Assumes PLSsemEngine and plspm are already installed
 library(PLSsemEngine)
 
 # =========================
@@ -139,5 +138,5 @@ benchmark_table <- do.call(rbind, results)
 
 print(benchmark_table)
 
-write.csv(benchmark_table, "benchmark_results.csv", row.names = FALSE)
+write.csv(benchmark_table, file.path(tempdir(), "benchmark_results.csv"), row.names = FALSE)
 
