@@ -13,7 +13,7 @@ plot_structural_model(
   arr_lwd = 1.2,
   box_col = "white",
   save_plot = FALSE,
-  file_name = "structural_model.png",
+  file_name = NULL,
   width = 2500,
   height = 1500,
   res = 300
@@ -36,7 +36,8 @@ plot_structural_model(
 
 \item{save_plot}{Logical. If TRUE, exports the plot as a high-resolution PNG.}
 
-\item{file_name}{Character. Target file name for export.}
+\item{file_name}{Character. Target file path for export. Required (no default
+location) when \code{save_plot = TRUE}, e.g. \code{file.path(tempdir(), "plot.png")}.}
 
 \item{width}{Integer. Width of the exported image in pixels.}
 
