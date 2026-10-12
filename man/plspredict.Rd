@@ -9,13 +9,14 @@ plspredict(
   measurement_model,
   structural_model,
   k = 5,
+  reps = 1,
   seed = 123,
   sign_correction = FALSE,
   inner_scheme = "factorial"
 )
 }
 \arguments{
-\item{data}{A data frame containing the observed indicators.}
+\item{data}{A data frame (or a matrix with column names) containing the observed indicators.}
 
 \item{measurement_model}{A named list defining the reflective constructs.}
 
@@ -23,22 +24,51 @@ plspredict(
 
 \item{k}{Integer. Number of folds for cross-validation. Default is 5.}
 
-\item{seed}{Integer. Random seed for fold generation to ensure reproducibility. Default is 123.}
+\item{reps}{Integer. Number of repetitions of the k-fold partition. Default is 1.}
+
+\item{seed}{Integer or NULL. Random seed for fold allocation. The state of the
+global random number generator is restored on exit, so the call does not alter
+the user's random stream. If NULL, folds are drawn from the current state of
+the generator. Default is 123.}
 
 \item{sign_correction}{Logical. Applies deterministic sign alignment to training models.}
 
 \item{inner_scheme}{Character. Weighting scheme for the inner approximation.}
 }
 \value{
-A list containing a predictive evaluation table (RMSE and Q2_predict),
-  fold-level squared losses per indicator (fold_losses), and conditional warnings.
+A list containing:
+\describe{
+  \item{table}{One row per endogenous indicator with RMSE_PLS, RMSE_LM,
+    MAE_PLS, MAE_LM and Q2_predict (against the training-sample mean), computed
+    from the prediction errors pooled over all folds and repetitions.}
+  \item{fold_losses}{One row per repetition, fold and endogenous indicator with
+    the number of test cases (N_test), RMSE_PLS, RMSE_LM, MSE_PLS and MSE_LM.
+    Used by cvpat().}
+  \item{warnings}{Character vector of conditional diagnostic messages.}
+  \item{settings}{List recording k, reps, seed, the prediction approach and
+    the LM benchmark specification.}
+}
 }
 \description{
-Implements the PLSpredict algorithm using k-fold cross-validation. 
-The function estimates the model exclusively on the training set and explicitly 
-projects the outer weights onto the test set. Predictive performance (RMSE) is 
-then compared against a naive linear model (LM) benchmark. Fold-level losses
-are retained to enable inferential testing via cvpat().
+Implements the PLSpredict procedure (Shmueli et al., 2016, 2019)
+using (optionally repeated) k-fold cross-validation. In every fold the PLS model
+is estimated exclusively on the training set. The test indicators are
+standardised with the training means and standard deviations, and the training
+outer weights are projected onto them without any further re-standardisation of
+the resulting composite scores. Endogenous indicators are predicted from the
+direct antecedents of their construct and returned to the original indicator
+metric using the training statistics.
+
+For every endogenous indicator, three out-of-sample predictions are compared:
+(i) the PLS prediction; (ii) a linear regression (LM) benchmark that regresses
+the indicator on the indicators of the direct antecedent constructs, estimated on
+the training set only; and (iii) the training-sample mean of the indicator.
+Prediction errors are pooled over all folds and repetitions before the metrics
+are computed. Q2_predict is defined against the training-sample mean, following
+Shmueli et al. (2019): Q2_predict = 1 - SSE_PLS / SSE_mean. The comparison with
+the LM benchmark is reported through RMSE and MAE. No interpretative thresholds
+are applied. Fold-level losses are retained to enable inferential testing via
+cvpat().
 }
 \examples{
 set.seed(1)
@@ -51,4 +81,14 @@ sm <- list(Satisfaction ~ Quality)
 pred <- plspredict(dat, mm, sm, k = 5)
 pred$table
 
+}
+\references{
+Shmueli, G., Ray, S., Velasquez Estrada, J. M., & Chatla, S. B. (2016).
+  The elephant in the room: predictive performance of PLS models. Journal of
+  Business Research, 69(10), 4552-4564. \doi{10.1016/j.jbusres.2016.03.049}
+
+  Shmueli, G., Sarstedt, M., Hair, J. F., Cheah, J.-H., Ting, H., Vaithilingam,
+  S., & Ringle, C. M. (2019). Predictive model assessment in PLS-SEM: guidelines
+  for using PLSpredict. European Journal of Marketing, 53(11), 2322-2347.
+  \doi{10.1108/EJM-02-2019-0189}
 }

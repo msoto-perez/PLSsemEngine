@@ -290,22 +290,60 @@ bootstrap_paths <- function(data,
 
 #' @title PLSpredict: Out-of-Sample Predictive Evaluation
 #'
-#' @description Implements the PLSpredict algorithm using k-fold cross-validation. 
-#' The function estimates the model exclusively on the training set and explicitly 
-#' projects the outer weights onto the test set. Predictive performance (RMSE) is 
-#' then compared against a naive linear model (LM) benchmark. Fold-level losses
-#' are retained to enable inferential testing via cvpat().
+#' @description Implements the PLSpredict procedure (Shmueli et al., 2016, 2019)
+#' using (optionally repeated) k-fold cross-validation. In every fold the PLS model
+#' is estimated exclusively on the training set. The test indicators are
+#' standardised with the training means and standard deviations, and the training
+#' outer weights are projected onto them without any further re-standardisation of
+#' the resulting composite scores. Endogenous indicators are predicted from the
+#' direct antecedents of their construct and returned to the original indicator
+#' metric using the training statistics.
 #'
-#' @param data A data frame containing the observed indicators.
+#' For every endogenous indicator, three out-of-sample predictions are compared:
+#' (i) the PLS prediction; (ii) a linear regression (LM) benchmark that regresses
+#' the indicator on the indicators of the direct antecedent constructs, estimated on
+#' the training set only; and (iii) the training-sample mean of the indicator.
+#' Prediction errors are pooled over all folds and repetitions before the metrics
+#' are computed. Q2_predict is defined against the training-sample mean, following
+#' Shmueli et al. (2019): Q2_predict = 1 - SSE_PLS / SSE_mean. The comparison with
+#' the LM benchmark is reported through RMSE and MAE. No interpretative thresholds
+#' are applied. Fold-level losses are retained to enable inferential testing via
+#' cvpat().
+#'
+#' @param data A data frame (or a matrix with column names) containing the observed indicators.
 #' @param measurement_model A named list defining the reflective constructs.
 #' @param structural_model A list of formulas defining the structural paths.
 #' @param k Integer. Number of folds for cross-validation. Default is 5.
-#' @param seed Integer. Random seed for fold generation to ensure reproducibility. Default is 123.
+#' @param reps Integer. Number of repetitions of the k-fold partition. Default is 1.
+#' @param seed Integer or NULL. Random seed for fold allocation. The state of the
+#'   global random number generator is restored on exit, so the call does not alter
+#'   the user's random stream. If NULL, folds are drawn from the current state of
+#'   the generator. Default is 123.
 #' @param sign_correction Logical. Applies deterministic sign alignment to training models.
 #' @param inner_scheme Character. Weighting scheme for the inner approximation.
 #'
-#' @return A list containing a predictive evaluation table (RMSE and Q2_predict),
-#'   fold-level squared losses per indicator (fold_losses), and conditional warnings.
+#' @return A list containing:
+#' \describe{
+#'   \item{table}{One row per endogenous indicator with RMSE_PLS, RMSE_LM,
+#'     MAE_PLS, MAE_LM and Q2_predict (against the training-sample mean), computed
+#'     from the prediction errors pooled over all folds and repetitions.}
+#'   \item{fold_losses}{One row per repetition, fold and endogenous indicator with
+#'     the number of test cases (N_test), RMSE_PLS, RMSE_LM, MSE_PLS and MSE_LM.
+#'     Used by cvpat().}
+#'   \item{warnings}{Character vector of conditional diagnostic messages.}
+#'   \item{settings}{List recording k, reps, seed, the prediction approach and
+#'     the LM benchmark specification.}
+#' }
+#'
+#' @references
+#'   Shmueli, G., Ray, S., Velasquez Estrada, J. M., & Chatla, S. B. (2016).
+#'   The elephant in the room: predictive performance of PLS models. Journal of
+#'   Business Research, 69(10), 4552-4564. \doi{10.1016/j.jbusres.2016.03.049}
+#'
+#'   Shmueli, G., Sarstedt, M., Hair, J. F., Cheah, J.-H., Ting, H., Vaithilingam,
+#'   S., & Ringle, C. M. (2019). Predictive model assessment in PLS-SEM: guidelines
+#'   for using PLSpredict. European Journal of Marketing, 53(11), 2322-2347.
+#'   \doi{10.1108/EJM-02-2019-0189}
 #'
 #' @examples
 #' set.seed(1)
@@ -323,163 +361,227 @@ plspredict <- function(data,
                        measurement_model,
                        structural_model,
                        k = 5,
+                       reps = 1,
                        seed = 123,
                        sign_correction = FALSE,
-                       inner_scheme = "factorial") { 
-  
-  # Set seed to guarantee that fold allocation remains consistent
-  set.seed(seed)
+                       inner_scheme = "factorial") {
+
+  data <- as.data.frame(data)
   n <- nrow(data)
-  folds <- sample(rep(1:k, length.out = n))
-  
-  results <- list()
-  
-  for (fold in seq_len(k)) {
-    
-    # Partition data into mutually exclusive training and test sets
-    train <- data[folds != fold, , drop = FALSE]
-    test  <- data[folds == fold,  , drop = FALSE]
-    
-    # Estimate the core PLS model exclusively on the training data 
-    model <- pls_engine(train, measurement_model, structural_model, 
-                        sign_correction = sign_correction,
-                        inner_scheme = inner_scheme) 
-    
-    # Standardise test data using the exact mean and standard deviation from the training set
-    X_train <- scale(as.matrix(train))
-    X_test  <- scale(as.matrix(test),
-                     center = attr(X_train, "scaled:center"),
-                     scale  = attr(X_train, "scaled:scale"))
-    
-    # Allocate matrix for test scores
-    test_scores <- matrix(NA,
-                          nrow = nrow(X_test),
-                          ncol = length(measurement_model))
-    
-    colnames(test_scores) <- names(measurement_model)
-    
-    # Project training outer weights onto the standardised test data to compute 
-    # out-of-sample latent scores without causing data leakage
-    for (j in seq_along(measurement_model)) {
-      
-      items <- measurement_model[[j]]
-      w <- model$outer_weights[[j]]
-      
-      test_scores[, j] <- X_test[, items, drop = FALSE] %*% w
+
+  # Validate the cross-validation settings
+  if (length(k) != 1 || is.na(k) || k < 2 || k > n || k != round(k)) {
+    stop("'k' must be a single integer between 2 and the number of observations.",
+         call. = FALSE)
+  }
+  if (length(reps) != 1 || is.na(reps) || reps < 1 || reps != round(reps)) {
+    stop("'reps' must be a single positive integer.", call. = FALSE)
+  }
+
+  all_items <- unique(unlist(measurement_model))
+  missing_items <- setdiff(all_items, colnames(data))
+  if (length(missing_items) > 0) {
+    stop("Indicators not found in data: ", paste(missing_items, collapse = ", "),
+         call. = FALSE)
+  }
+
+  # Set the seed for fold allocation without altering the user's random stream:
+  # the previous state of the generator is restored when the function exits
+  if (!is.null(seed)) {
+    global_env <- globalenv()
+    if (exists(".Random.seed", envir = global_env, inherits = FALSE)) {
+      old_seed <- get(".Random.seed", envir = global_env, inherits = FALSE)
+      on.exit(assign(".Random.seed", old_seed, envir = global_env), add = TRUE)
+    } else {
+      on.exit(rm(".Random.seed", envir = global_env), add = TRUE)
     }
-    
-    test_scores <- scale(test_scores)
-    
-    # Predict endogenous indicators structurally
-    for (f in structural_model) {
-      
-      lhs <- as.character(f[[2]])
-      rhs <- all.vars(f[[3]])
-      if (length(rhs) == 0) next
-      
-      y_hat <- as.matrix(test_scores[, rhs, drop = FALSE]) %*%
-        model$paths[[lhs]]
-      
-      inds <- measurement_model[[lhs]]
-      
-      for (ind in inds) {
-        
-        lambda <- model$loadings[ind, lhs]
-        if (is.na(lambda)) next
-        
-        # Calculate PLS prediction on a standardised scale
-        y_pls_std <- as.numeric(y_hat * lambda)
-        
-        # Re-scale predictions back to the original indicator metric using training statistics
-        mean_train <- mean(train[[ind]], na.rm = TRUE)
-        sd_train   <- sd(train[[ind]], na.rm = TRUE)
-        
-        y_pls <- y_pls_std * sd_train + mean_train
-        
-        y_obs <- test[[ind]]
-        
-        rmse_pls <- sqrt(mean((y_obs - y_pls)^2, na.rm = TRUE))
-        
-        # --- Linear Model (LM) Benchmark
-        
-        # Estimate the naive LM model using training scores
-        df_train <- data.frame(
-          y = train[[ind]],
-          model$scores[, rhs, drop = FALSE]
-        )
-        lm_fit <- lm(y ~ ., data = df_train)
-        
-        # Predict using test scores for the LM benchmark
-        df_test <- data.frame(
-          test_scores[, rhs, drop = FALSE]
-        )
-        colnames(df_test) <- colnames(model$scores[, rhs, drop = FALSE])
-        
-        y_lm <- predict(lm_fit, newdata = df_test)
-        
-        rmse_lm <- sqrt(mean((y_obs - y_lm)^2, na.rm = TRUE))
-        
-        # Store fold-level squared losses for each observation (required for CVPAT)
-        loss_pls_obs <- (y_obs - y_pls)^2
-        loss_lm_obs  <- (y_obs - y_lm)^2
-        
-        results[[length(results) + 1]] <- data.frame(
-          Fold      = fold,
-          Construct = lhs,
-          Indicator = ind,
-          RMSE_PLS  = rmse_pls,
-          RMSE_LM   = rmse_lm,
-          # Mean squared loss per fold per indicator (used by cvpat)
-          MSE_PLS   = mean(loss_pls_obs, na.rm = TRUE),
-          MSE_LM    = mean(loss_lm_obs,  na.rm = TRUE)
-        )
+    set.seed(seed)
+  }
+
+  # Endogenous constructs and their direct antecedents
+  endogenous <- list()
+  for (f in structural_model) {
+    lhs <- as.character(f[[2]])
+    rhs <- all.vars(f[[3]])
+    if (length(rhs) == 0) next
+    endogenous[[length(endogenous) + 1]] <- list(lhs = lhs, rhs = rhs)
+  }
+
+  errors <- list()
+  losses <- list()
+
+  for (r in seq_len(reps)) {
+
+    # Allocate observations to folds (with the same seed, the first repetition
+    # reproduces the fold allocation of PLSsemEngine v1.3.0)
+    folds <- sample(rep(seq_len(k), length.out = n))
+
+    for (fold in seq_len(k)) {
+
+      # Partition data into mutually exclusive training and test sets
+      train <- data[folds != fold, , drop = FALSE]
+      test  <- data[folds == fold,  , drop = FALSE]
+
+      # Estimate the core PLS model exclusively on the training data
+      model <- pls_engine(train, measurement_model, structural_model,
+                          sign_correction = sign_correction,
+                          inner_scheme = inner_scheme)
+
+      # Training statistics of the indicators (used for every rescaling step)
+      X_train_raw <- as.matrix(train[, all_items, drop = FALSE])
+      mean_train  <- colMeans(X_train_raw, na.rm = TRUE)
+      sd_train    <- apply(X_train_raw, 2, sd, na.rm = TRUE)
+
+      # Standardise test data using the exact mean and standard deviation from the training set
+      X_test <- scale(as.matrix(test[, all_items, drop = FALSE]),
+                      center = mean_train,
+                      scale  = sd_train)
+
+      # Project training outer weights onto the standardised test data to compute
+      # out-of-sample composite scores without data leakage. The scores are NOT
+      # re-standardised with test-fold statistics.
+      test_scores <- matrix(NA_real_,
+                            nrow = nrow(test),
+                            ncol = length(measurement_model),
+                            dimnames = list(NULL, names(measurement_model)))
+
+      for (j in seq_along(measurement_model)) {
+        items <- measurement_model[[j]]
+        test_scores[, j] <- X_test[, items, drop = FALSE] %*% model$outer_weights[[j]]
+      }
+
+      for (e in endogenous) {
+
+        lhs <- e$lhs
+        rhs <- e$rhs
+
+        # PLS prediction of the endogenous composite from its direct antecedents
+        eta_hat <- as.numeric(test_scores[, rhs, drop = FALSE] %*%
+                                as.numeric(model$paths[[lhs]]))
+
+        # LM benchmark design: indicators of the direct antecedent constructs.
+        # Matrix algebra is used instead of formulas so that non-syntactic
+        # indicator names cannot break the benchmark.
+        ant_items <- unique(unlist(measurement_model[rhs]))
+        Z_train <- cbind(1, as.matrix(train[, ant_items, drop = FALSE]))
+        Z_test  <- cbind(1, as.matrix(test[,  ant_items, drop = FALSE]))
+
+        for (ind in measurement_model[[lhs]]) {
+
+          lambda <- model$loadings[ind, lhs]
+          if (is.na(lambda)) next
+
+          y_train <- train[[ind]]
+          y_obs   <- test[[ind]]
+
+          # PLS prediction re-scaled to the original indicator metric using training statistics
+          y_pls <- eta_hat * lambda * sd_train[[ind]] + mean_train[[ind]]
+
+          # LM benchmark estimated on the training fold only (complete cases);
+          # coefficients of aliased predictors are set to zero (i.e. dropped)
+          ok <- stats::complete.cases(Z_train, y_train)
+          lm_coef <- stats::lm.fit(Z_train[ok, , drop = FALSE], y_train[ok])$coefficients
+          lm_coef[is.na(lm_coef)] <- 0
+          y_lm <- as.numeric(Z_test %*% lm_coef)
+
+          # Naive benchmark: training-sample mean of the indicator
+          y_mean <- rep(mean_train[[ind]], length(y_obs))
+
+          e_pls  <- y_obs - y_pls
+          e_lm   <- y_obs - y_lm
+          e_mean <- y_obs - y_mean
+
+          # Keep only test cases with all three predictions available so that
+          # every metric is computed on the same observations
+          keep <- !is.na(e_pls) & !is.na(e_lm) & !is.na(e_mean)
+          if (!any(keep)) next
+
+          errors[[length(errors) + 1]] <- data.frame(
+            Construct = lhs,
+            Indicator = ind,
+            e_pls     = e_pls[keep],
+            e_lm      = e_lm[keep],
+            e_mean    = e_mean[keep],
+            stringsAsFactors = FALSE
+          )
+
+          # Store fold-level losses (required for CVPAT)
+          losses[[length(losses) + 1]] <- data.frame(
+            Rep       = r,
+            Fold      = fold,
+            Construct = lhs,
+            Indicator = ind,
+            N_test    = sum(keep),
+            RMSE_PLS  = sqrt(mean(e_pls[keep]^2)),
+            RMSE_LM   = sqrt(mean(e_lm[keep]^2)),
+            MSE_PLS   = mean(e_pls[keep]^2),
+            MSE_LM    = mean(e_lm[keep]^2),
+            stringsAsFactors = FALSE
+          )
+        }
       }
     }
   }
-  
-  res <- do.call(rbind, results)
-  
+
+  if (length(errors) == 0) {
+    stop("No out-of-sample predictions could be computed. ",
+         "Check the structural model and missing values.", call. = FALSE)
+  }
+
+  err <- do.call(rbind, errors)
+  res <- do.call(rbind, losses)
+  rownames(res) <- NULL
+
   # --- Predictive Relevance Assessment
-  # Aggregate RMSE across all folds for comparison
+  # Errors are pooled over all folds and repetitions for each indicator
+  # (indicators keep the order in which they appear in the model)
+  key <- paste(err$Construct, err$Indicator, sep = "\u001f")
+  key <- factor(key, levels = unique(key))
+
   table5 <- do.call(
     rbind,
-    lapply(
-      split(seq_len(nrow(res)),
-            paste(res$Construct, res$Indicator)),
-      function(i) {
-        data.frame(
-          Construct = res$Construct[i[1]],
-          Indicator = res$Indicator[i[1]],
-          RMSE_PLS  = mean(res$RMSE_PLS[i]),
-          RMSE_LM   = mean(res$RMSE_LM[i])
-        )
-      })
+    lapply(split(err, key), function(d) {
+      sse_mean <- sum(d$e_mean^2)
+      data.frame(
+        Construct  = d$Construct[1],
+        Indicator  = d$Indicator[1],
+        RMSE_PLS   = sqrt(mean(d$e_pls^2)),
+        RMSE_LM    = sqrt(mean(d$e_lm^2)),
+        MAE_PLS    = mean(abs(d$e_pls)),
+        MAE_LM     = mean(abs(d$e_lm)),
+        # Q2_predict (Shmueli et al., 2019): 1 - SSE_PLS / SSE of the training-mean prediction
+        Q2_predict = if (sse_mean > 0) 1 - sum(d$e_pls^2) / sse_mean else NA_real_,
+        stringsAsFactors = FALSE
+      )
+    })
   )
-  
-  # Calculate Q2_predict: values > 0 indicate the PLS model outperforms the naive LM benchmark
-  table5$Q2_predict <- ifelse(
-    table5$RMSE_LM == 0,
-    NA,
-    1 - (table5$RMSE_PLS^2 / table5$RMSE_LM^2)
-  )
-  
+
+  rownames(table5) <- NULL
+
   # Conditional diagnostic warning logic
   warnings <- character(0)
-  if (any(table5$Q2_predict < 0, na.rm = TRUE)) {
-    warnings <- paste(
-      "Negative Q2_predict detected:",
-      "PLS-based predictions are outperformed by the linear benchmark,",
-      "indicating low predictive relevance (Shmueli et al., 2019)."
+  neg <- !is.na(table5$Q2_predict) & table5$Q2_predict < 0
+  if (any(neg)) {
+    warnings <- paste0(
+      "Negative Q2_predict for ", sum(neg), " indicator(s) (",
+      paste(table5$Indicator[neg], collapse = ", "), "): ",
+      "out-of-sample PLS predictions have a larger squared error than the ",
+      "training-sample mean (Q2_predict as defined by Shmueli et al., 2019)."
     )
     warning(warnings, call. = FALSE)
   }
-  
-  rownames(table5) <- NULL
-  
+
   list(
-    table      = table5,
+    table       = table5,
     fold_losses = res,
-    warnings   = warnings
+    warnings    = warnings,
+    settings    = list(
+      k         = k,
+      reps      = reps,
+      seed      = seed,
+      approach  = "Direct antecedents",
+      benchmark = "LM on the indicators of the direct antecedent constructs"
+    )
   )
 }
 
@@ -491,18 +593,23 @@ plspredict <- function(data,
 #'
 #' @description Implements the Cross-Validated Predictive Ability Test (CVPAT)
 #' proposed by Liengaard et al. (2021) and extended by Sharma et al. (2023).
-#' Unlike PLSpredict, which provides descriptive predictive metrics (RMSE, Q2_predict),
-#' CVPAT provides an inferential test of whether the PLS model predicts
-#' significantly better than the naive linear model (LM) benchmark.
+#' Unlike PLSpredict, which provides descriptive predictive metrics (RMSE, MAE,
+#' Q2_predict), CVPAT provides an inferential test of whether the PLS model predicts
+#' significantly better than the linear model (LM) benchmark, which regresses each
+#' endogenous indicator on the indicators of the direct antecedent constructs.
 #'
 #' The test computes, for each fold and each endogenous indicator, the mean
 #' squared loss difference (MSE_LM - MSE_PLS). A one-sample t-test evaluates
 #' whether the average loss difference across folds is significantly greater
 #' than zero (H0: mean loss difference = 0). A positive and significant result
 #' indicates that the PLS model predicts significantly better than the benchmark.
+#' If plspredict() was run with reps > 1, only the folds of the first repetition
+#' are used, because fold-level losses from different repetitions share
+#' observations and are not independent.
 #'
-#' @param plspredict_result The list returned by plspredict(), which must include
-#'   the fold_losses element (available when using PLSsemEngine >= v1.3.0).
+#' @param plspredict_result The list returned by plspredict() (or by pls_sem()),
+#'   which must include the fold_losses element (available when using
+#'   PLSsemEngine >= v1.3.0).
 #'
 #' @return A data frame with one row per endogenous indicator, reporting:
 #'   mean loss difference, standard deviation, t-statistic, degrees of freedom,
@@ -544,7 +651,18 @@ cvpat <- function(plspredict_result) {
   }
   
   res <- plspredict_result$fold_losses
-  
+
+  # With repeated cross-validation, keep only the first repetition: fold-level
+  # losses from different repetitions share observations and are not independent
+  reps_note <- NULL
+  if ("Rep" %in% names(res) && length(unique(res$Rep)) > 1) {
+    res <- res[res$Rep == min(res$Rep), , drop = FALSE]
+    reps_note <- paste(
+      "plspredict() was run with reps > 1; CVPAT uses the folds of the first",
+      "repetition only."
+    )
+  }
+
   # Identify unique construct-indicator combinations
   indicators <- unique(paste(res$Construct, res$Indicator, sep = "|"))
   
@@ -608,8 +726,10 @@ cvpat <- function(plspredict_result) {
   attr(output, "interpretation") <- paste(
     "CVPAT (Liengaard et al., 2021): Mean loss difference = MSE_LM - MSE_PLS per fold.",
     "A positive and significant result (p < .05) indicates the PLS model predicts",
-    "significantly better than the naive linear model benchmark.",
-    "H0: mean loss difference = 0. Two-sided t-test with k-1 degrees of freedom."
+    "significantly better than the linear model benchmark (LM on the indicators",
+    "of the direct antecedent constructs).",
+    "H0: mean loss difference = 0. Two-sided t-test with k-1 degrees of freedom.",
+    reps_note
   )
   
   class(output) <- c("cvpat_result", "data.frame")

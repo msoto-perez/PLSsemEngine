@@ -7,8 +7,9 @@
 cvpat(plspredict_result)
 }
 \arguments{
-\item{plspredict_result}{The list returned by plspredict(), which must include
-the fold_losses element (available when using PLSsemEngine >= v1.3.0).}
+\item{plspredict_result}{The list returned by plspredict() (or by pls_sem()),
+which must include the fold_losses element (available when using
+PLSsemEngine >= v1.3.0).}
 }
 \value{
 A data frame with one row per endogenous indicator, reporting:
@@ -19,15 +20,19 @@ A data frame with one row per endogenous indicator, reporting:
 \description{
 Implements the Cross-Validated Predictive Ability Test (CVPAT)
 proposed by Liengaard et al. (2021) and extended by Sharma et al. (2023).
-Unlike PLSpredict, which provides descriptive predictive metrics (RMSE, Q2_predict),
-CVPAT provides an inferential test of whether the PLS model predicts
-significantly better than the naive linear model (LM) benchmark.
+Unlike PLSpredict, which provides descriptive predictive metrics (RMSE, MAE,
+Q2_predict), CVPAT provides an inferential test of whether the PLS model predicts
+significantly better than the linear model (LM) benchmark, which regresses each
+endogenous indicator on the indicators of the direct antecedent constructs.
 
 The test computes, for each fold and each endogenous indicator, the mean
 squared loss difference (MSE_LM - MSE_PLS). A one-sample t-test evaluates
 whether the average loss difference across folds is significantly greater
 than zero (H0: mean loss difference = 0). A positive and significant result
 indicates that the PLS model predicts significantly better than the benchmark.
+If plspredict() was run with reps > 1, only the folds of the first repetition
+are used, because fold-level losses from different repetitions share
+observations and are not independent.
 }
 \examples{
 set.seed(1)
